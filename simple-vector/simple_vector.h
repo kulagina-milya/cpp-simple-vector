@@ -106,7 +106,7 @@ public:
             std::generate(begin() + size_, begin() + new_size, [](){
                 return std::move(Type{});
             });
-            size_ = s;
+            size_ = new_size;
             capacity_ = s;
         }
     }        
@@ -142,7 +142,6 @@ public:
             Reserve(new_capacity);
             items_[size_] = std::move(item);
             ++size_;
-            capacity_ = new_capacity;
         }
     }
     
@@ -156,24 +155,17 @@ public:
             Reserve(new_capacity);
             items_[size_] = std::move(item);
             ++size_;
-            capacity_ = new_capacity;
         }
-    }
-    
-    void MoveItems(size_t shift) {
-        capacity_ = (capacity_ == 0) ? 1 : 2 * capacity_;
-        ArrayPtr<Type> temp(capacity_);
-        std::move(begin(), begin() + shift, temp.Get());
-        items_.swap(temp);
     }
                 
     Iterator Insert(ConstIterator pos, const Type& value) {
         assert(pos >= begin() && pos < end());
         const auto shift = pos - begin();
         if (size_ == capacity_) {
-            MoveItems(shift);
+            size_t new_capacity = (capacity_ == 0) ? 1 : 2 * capacity_;
+            Reserve(new_capacity);
         }
-        std::move_backward(begin() + shift, end(), end() + 1);
+        MoveItemsBackward(shift);
         items_[shift] = value;
         ++size_;
         return (begin() + shift);
@@ -182,9 +174,10 @@ public:
     Iterator Insert(ConstIterator pos, Type&& value) {
         const auto shift = pos - begin();
         if (size_ == capacity_) {
-            MoveItems(shift);
+            size_t new_capacity = (capacity_ == 0) ? 1 : 2 * capacity_;
+            Reserve(new_capacity);
         }
-        std::move_backward(begin() + shift, end(), end() + 1);
+        MoveItemsBackward(shift);
         items_[shift] = std::move(value);
         ++size_;
         return (begin() + shift);
@@ -245,9 +238,13 @@ public:
     }
 
     private:
-        ArrayPtr<Type> items_;
-        size_t size_ = 0;
-        size_t capacity_ = 0;
+    ArrayPtr<Type> items_;
+    size_t size_ = 0;
+    size_t capacity_ = 0;
+        
+    void MoveItemsBackward(size_t shift) {
+        std::move_backward(begin() + shift, end(), end() + 1);
+    }
 };
 
 template <typename Type>
